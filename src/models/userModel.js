@@ -1,26 +1,30 @@
-import mongoose from "mongoose";
-import { hashPassword } from "../utils/hashpassword.js";
+import mongoose from 'mongoose';
+import { hashPassword } from '../utils/hashpassword.js';
 
-const userSchema = new mongoose.Schema(
+const { Schema } = mongoose;
+
+const userSchema = new Schema(
     {
-      username: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
-        lowercase: true
-      },
-      email: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
-        lowercase: true
-      },
-      password: {
-        type: String,
-        required: true
-      }
+        username: {
+            type: String,
+            required: true,
+            unique: true,
+            trim: true,
+            index: true,
+        },
+        email: {
+            type: String,
+            required: true,
+            unique: true,
+            lowercase: true,
+            trim: true,
+            index: true,
+        },
+        password: {
+            type: String,
+            required: true,
+            select: false,
+        },
     },
     { timestamps: true }
 );
@@ -31,5 +35,4 @@ userSchema.pre('save', async function (next) {
     next();
 });
 
-export const User = mongoose.model("User", userSchema);
-
+export const User = mongoose.model('User', userSchema);

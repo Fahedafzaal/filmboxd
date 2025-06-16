@@ -1,149 +1,68 @@
-import { UserList } from '../models/userListModel.js';
-import tmdb from '../config/tmdb.js';
-import { dedupeMovies } from '../utils/helpers.js';
-import { TMDB_API, ERROR_MESSAGES, SORT_OPTIONS } from '../constants/userListConstants.js';
-import { validateListInput, validateMovieInput } from '../utils/validators.js';
+import { UserListRepository } from '../repositories/userListRepository.js';
+import { TMDBService } from '../external/tmdbService.js';
+import { validateListInput } from '../utils/validators/index.js';
 import { AppError } from '../utils/apperror.js';
+import { USER_LIST_ERROR_MESSAGES } from '../constants/userList/index.js';
+import { dedupeMovies } from '../utils/duplicateMovieCheck.js';
 
-export async function searchMoviesTMDB(query) {
-    try {
-        const q = query?.trim()?.toLowerCase();
-        if (!q) return [];
-
-        const {
-            data: { results }
-        } = await tmdb.get(TMDB_API.ENDPOINTS.SEARCH_MOVIE, {
-            params: {
-                query: q,
-                include_adult: TMDB_API.PARAMS.INCLUDE_ADULT,
-                language: TMDB_API.PARAMS.LANGUAGE,
-            }
-        });
-
-        if (!results) {
-            throw new Error(ERROR_MESSAGES.TMDB.NO_RESULTS);
-        }
-
-        return results.map(
-            ({ id, title, release_date, poster_path }) => ({
-                tmdbId: id,
-                title,
-                releaseYear: release_date?.slice(0, 4) || null,
-                posterPath: poster_path || null,
-            })
-        );
-    } catch (error) {
-        if (error.response) {
-            switch (error.response.status) {
-                case 401:
-                    throw new Error(ERROR_MESSAGES.TMDB.INVALID_KEY);
-                case 404:
-                    throw new Error(ERROR_MESSAGES.TMDB.ENDPOINT_NOT_FOUND);
-                case 429:
-                    throw new Error(ERROR_MESSAGES.TMDB.RATE_LIMIT);
-                default:
-                    throw new Error(`TMDB API error: ${error.response.status} - ${error.response.statusText}`);
-            }
-        } else if (error.request) {
-            throw new Error(ERROR_MESSAGES.TMDB.NO_RESPONSE);
-        } else {
-            throw new Error(`Error searching movies: ${error.message}`);
-        }
+export class UserListService {
+    constructor() {
+        this.userListRepository = new UserListRepository();
+        this.tmdbService = new TMDBService();
     }
-}
 
-export async function createList(userId, data) {
-    try {
-        validateListInput(userId, data);
+    async searchMoviesTMDB(query) {
+        return this.tmdbService.searchMovies(query);
+    }
 
-        const moviesWithDetails = await Promise.all(
-            data.movies?.map(async (movie) => {
-                validateMovieInput(movie);
+    async createList(userId, { name, description, tags, isRanked, isPublic, movies }) {
+        validateListInput(userId, { name, description, tags, isRanked, isPublic, movies });
 
-                try {
-                    const { data: movieDetails } = await tmdb.get(`${TMDB_API.ENDPOINTS.MOVIE_DETAILS}/${movie.tmdbId}`);
-                    
-                    if (!movieDetails?.title) {
-                        throw new AppError(ERROR_MESSAGES.LIST.INVALID_MOVIE_DATA(movie.tmdbId), 400);
-                    }
-
-                    return {
-                        tmdbId: movie.tmdbId,
-                        title: movieDetails.title,
-                        posterPath: movieDetails.poster_path || null,
-                        releaseDate: movieDetails.release_date ? new Date(movieDetails.release_date) : null,
-                        order: movie.order || 0
-                    };
-                } catch (error) {
-                    throw new AppError(ERROR_MESSAGES.LIST.FAILED_TO_FETCH_MOVIE(movie.tmdbId, error), 500);
-                }
-            }) || []
-        );
-
-        const list = new UserList({
+        const newList = await this.userListRepository.create({
             userId,
-            name: data.name,
-            description: data.description || '',
-            tags: data.tags || [],
-            isRanked: data.isRanked || false,
-            isPublic: data.isPublic !== undefined ? data.isPublic : true,
-            movies: moviesWithDetails
+            name,
+            description: description || '',
+            tags: tags || [],
+            isRanked: isRanked || false,
+            isPublic: isPublic ?? true,
+            movies: dedupeMovies(movies || []),
         });
 
-        const validationError = list.validateSync();
-        if (validationError) {
-            throw new AppError(validationError.message, 400);
-        }
-
-        const savedList = await list.save();
-        if (!savedList) {
-            throw new AppError(ERROR_MESSAGES.LIST.SAVE_FAILED, 500);
+        if (!newList) {
+            throw new AppError(USER_LIST_ERROR_MESSAGES.LIST.SAVE_FAILED, 500);
         }
 
         return {
-            id: savedList._id.toString(),
-            userId: savedList.userId.toString(),
-            name: savedList.name,
-            description: savedList.description,
-            tags: savedList.tags,
-            isRanked: savedList.isRanked,
-            isPublic: savedList.isPublic,
-            movies: savedList.movies,
-            createdAt: savedList.createdAt.toISOString(),
-            updatedAt: savedList.updatedAt.toISOString()
+            success: true,
+            message: 'List created successfully',
+            data: newList,
         };
-    } catch (error) {
-        if (error instanceof AppError) {
-            throw error;
+    }
+
+    async deleteList(id, userId) {
+        const result = await this.userListRepository.findOneAndDelete(id, userId);
+        if (!result) {
+            throw new AppError(USER_LIST_ERROR_MESSAGES.LIST_NOT_FOUND_OR_UNAUTHORIZED, 404);
         }
-        throw new AppError(error.message, 500);
+        return true;
     }
-}
 
-export async function deleteList(id, userId) {
-    const result = await UserList.findOneAndDelete({ _id: id, userId });
-    if (!result) throw new Error(ERROR_MESSAGES.LIST_NOT_FOUND_OR_UNAUTHORIZED);
-    return true;
-}
-
-export async function getUserLists(userId, requestingUserId) {
-    const sameUser = String(userId) === String(requestingUserId);
-    const query = sameUser
-        ? { userId }
-        : { userId, isPublic: true };
-    return await UserList.find(query)
-        .sort(SORT_OPTIONS.UPDATED_AT_DESC)
-        .lean();
-}
-
-export async function getList(id, requestingUserId) {
-    const list = await UserList.findById(id).lean();
-    if (!list) throw new Error(ERROR_MESSAGES.LIST_NOT_FOUND);
-    if (
-        String(list.userId) !== String(requestingUserId) &&
-        !list.isPublic
-    ) {
-        throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
+    async getUserLists(userId, requestingUserId) {
+        const isSameUser = String(userId) === String(requestingUserId);
+        return await this.userListRepository.findUserLists(userId, isSameUser ? null : true);
     }
-    return list;
+
+    async getList(id, requestingUserId) {
+        const list = await this.userListRepository.findById(id);
+        if (!list) {
+            throw new AppError(USER_LIST_ERROR_MESSAGES.LIST.NOT_FOUND, 404);
+        }
+
+        const isOwner = String(list.userId) === String(requestingUserId);
+        if (!isOwner && !list.isPublic) {
+            throw new AppError(USER_LIST_ERROR_MESSAGES.UNAUTHORIZED, 403);
+        }
+
+        return list;
+    }
 }

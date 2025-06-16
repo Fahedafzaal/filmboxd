@@ -1,13 +1,15 @@
-import { createUser, loginUser, getAllUsers } from '../../../services/userService.js';
+import { UserService } from '../../../services/userService.js';
+
+const userService = new UserService();
 
 export const userResolvers = {
   Query: {
     me: (_, __, { user }) => user,
-    getAllUsers: () => getAllUsers()
+    getAllUsers: () => userService.getAllUsers()
   },
 
   Mutation: {
-    signup: (_, { data }) => createUser(data),
-    login: (_, { data }) => loginUser(data)
+    signup: (_, { data }) => userService.createUser(data),
+    login: (_, { data }) => userService.loginUser(data)
   }
 };

@@ -1,7 +1,5 @@
-import { config } from 'dotenv';
 import jwt from 'jsonwebtoken';
-
-config();
+import { config } from '../config/index.js';
 
 export const signToken = (user) => {
     return jwt.sign(
@@ -9,17 +7,17 @@ export const signToken = (user) => {
             id: user._id,
             email: user.email,
         },
-        process.env.JWT_SECRET,
+        config.jwtSecret,
         {
-            expiresIn: process.env.JWT_EXPIRES,
+            expiresIn: config.jwtExpires,
         }
     );
 };
 
 export const verifyToken = (token) => {
     try {
-        return jwt.verify(token, process.env.JWT_SECRET);
-    } catch (error) {
+        return jwt.verify(token, config.jwtSecret);
+    } catch (_error) {
         throw new Error('Invalid or expired token');
     }
 };

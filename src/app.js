@@ -1,11 +1,8 @@
 import express from 'express';
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
-import { expressMiddleware } from '@apollo/server/express4';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
 import { typeDefs } from './api/graphql/typeDefs.js';
 import { userResolvers } from './api/graphql/resolvers/userResolvers.js';
 import { userListResolvers } from './api/graphql/resolvers/userListResolvers.js';
@@ -13,8 +10,6 @@ import connectDB from './config/db.js';
 import { config } from './config/index.js';
 import { verifyToken } from './utils/auth.js';
 import { User } from './models/userModel.js';
-
-dotenv.config();
 
 const app = express();
 app.use(bodyParser.json());
@@ -72,6 +67,6 @@ const startServer = async () => {
         console.error('Failed to start server:', error);
         process.exit(1);
     }
-}
+};
 
 startServer();

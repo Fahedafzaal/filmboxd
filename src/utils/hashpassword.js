@@ -1,7 +1,7 @@
-import bcrypt from "bcryptjs";
-import USER_CONSTANTS from "../constants/userConstants.js";
+import bcrypt from 'bcryptjs';
+import { USER_SECURITY } from '../constants/user/index.js';
 
-const { BCRYPT_SALT_ROUNDS } = USER_CONSTANTS.SECURITY;
+const { BCRYPT_SALT_ROUNDS } = USER_SECURITY;
 
 export const hashPassword = (password) => {
     return bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
