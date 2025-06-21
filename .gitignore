@@ -1,3 +1,10 @@
-node_modules
+# Root level ignores
+.DS_Store
 .env
-logs
+
+# Backend ignores
+/backend/node_modules/
+
+
+# Frontend ignores
+/frontend/node_modules/
