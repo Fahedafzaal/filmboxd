@@ -79,5 +79,6 @@ export const typeDefs = `#graphql
     login(data: LoginInput!): AuthPayload!
     createList(data: CreateListInput!): UserList!
     deleteList(id: ID!): Boolean!
+    logout: Boolean!
   }
 `;

@@ -1,19 +1,24 @@
 import express from 'express';
-import { ApolloServer } from '@apollo/server';
-import { startStandaloneServer } from '@apollo/server/standalone';
+import http from 'http';
 import cors from 'cors';
-import bodyParser from 'body-parser';
+import { ApolloServer } from '@apollo/server';
+import { expressMiddleware } from '@as-integrations/express5';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import { typeDefs } from './api/graphql/typeDefs.js';
 import { userResolvers } from './api/graphql/resolvers/userResolvers.js';
 import { userListResolvers } from './api/graphql/resolvers/userListResolvers.js';
 import connectDB from './config/db.js';
 import { config } from './config/index.js';
-import { verifyToken } from './utils/auth.js';
-import { User } from './models/userModel.js';
+import { getUserFromRequest } from './utils/auth.js';
 
 const app = express();
-app.use(bodyParser.json());
-app.use(cors());
+const httpServer = http.createServer(app);
+
+app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true
+}));
+app.use(express.json());
 
 const startServer = async () => {
     try {
@@ -21,7 +26,7 @@ const startServer = async () => {
         console.log('Connected to MongoDB');
 
         const server = new ApolloServer({
-            typeDefs, 
+            typeDefs,
             resolvers: {
                 Query: {
                     ...userResolvers.Query,
@@ -35,34 +40,23 @@ const startServer = async () => {
                     ...userListResolvers.User,
                 }
             },
+            plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
         });
+        await server.start();
 
-        const { url } = await startStandaloneServer(server, {
-            listen: { port: config.port },
-            context: async ({ req }) => {
-                // Get the token from the Authorization header
-                const authHeader = req.headers.authorization || '';
-                const token = authHeader.replace('Bearer ', '');
-                
-                if (!token) {
-                    return { user: null };
+        app.use(
+            '/',
+            expressMiddleware(server, {
+                context: async ({ req, res }) => {
+                    const user = await getUserFromRequest(req);
+                    return { user, res };
                 }
+            })
+        );
 
-                try {
-                    // Verify the token
-                    const decoded = verifyToken(token);
-                    
-                    // Get the user from the database
-                    const user = await User.findById(decoded.id).select('-password');
-                    
-                    return { user };
-                } catch (error) {
-                    console.error('Error verifying token:', error);
-                    return { user: null };
-                }
-            }
+        httpServer.listen({ port: config.port }, () => {
+            console.log(`Server is running on http://localhost:${config.port}`);
         });
-        console.log(`Server is running on ${url}`);
     } catch (error) {
         console.error('Failed to start server:', error);
         process.exit(1);
