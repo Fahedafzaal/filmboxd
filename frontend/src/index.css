@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand-bg: #14181c;
+  --color-brand-bg-secondary: #2c3440;
+  --color-brand-text: #9ab;
+  --color-brand-text-bright: #cde;
+  --color-brand-text-dark: #678;
+  --color-brand-accent: #00e054;
+  --color-brand-accent-hover: #00c030;
+  --color-brand-action: #40bcf4;
+  --color-brand-border: #456;
+  --color-brand-nav-auth: #14181c;
+  
+  --color-gradient-start: #1e252c;
+  --color-gradient-end: #14181c;
+  
+  --font-sans: "Graphik-Regular-Web", "sans-serif";
+  --font-serif: "TiemposTextWeb-Semibold", "Georgia", "serif";
+  --font-headline: "TiemposHeadlineWeb-Bold", "Georgia", "serif";
+}
+
 .poster-grid {
   @apply grid gap-4;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

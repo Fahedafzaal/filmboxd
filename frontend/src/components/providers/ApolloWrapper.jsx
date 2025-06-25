@@ -1,24 +1,23 @@
 import { ApolloClient, InMemoryCache, ApolloProvider, createHttpLink } from "@apollo/client"
-import { setContext } from "@apollo/client/link/context"
 
 const httpLink = createHttpLink({
-  uri: import.meta.env.VITE_GRAPHQL_ENDPOINT || "http://localhost:4000/graphql",
-})
-
-const authLink = setContext((_, { headers }) => {
-  const token = localStorage.getItem("token")
-
-  return {
-    headers: {
-      ...headers,
-      authorization: token ? `Bearer ${token}` : "",
-    },
-  }
+  uri: import.meta.env.VITE_GRAPHQL_ENDPOINT || "http://localhost:3000/",
+  credentials: "include", // Include cookies for authentication
 })
 
 const client = new ApolloClient({
-  link: authLink.concat(httpLink),
+  link: httpLink,
   cache: new InMemoryCache(),
+  defaultOptions: {
+    watchQuery: {
+      errorPolicy: "all",
+      fetchPolicy: "cache-and-network",
+    },
+    query: {
+      errorPolicy: "all",
+      fetchPolicy: "cache-first",
+    },
+  },
 })
 
 export function ApolloWrapper({ children }) {

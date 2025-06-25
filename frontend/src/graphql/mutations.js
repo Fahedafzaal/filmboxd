@@ -1,13 +1,16 @@
 import { gql } from "@apollo/client"
 
 export const SIGNUP = gql`
-  mutation Signup($data: SignupInput!) {
+  mutation Signup($data: SignUpInput!) {
     signup(data: $data) {
       token
       user {
         id
         username
         email
+      }
+    }
+  }
 `
 
 export const LOGIN = gql`
@@ -44,4 +47,16 @@ export const CREATE_LIST = gql`
       }
     }
   }
-`;
+`
+
+export const DELETE_LIST = gql`
+  mutation DeleteList($id: ID!) {
+    deleteList(id: $id)
+  }
+`
+
+export const LOGOUT = gql`
+  mutation Logout {
+    logout
+  }
+`

@@ -1,40 +1,63 @@
 import { createContext, useContext, useState, useEffect } from "react"
-import { useQuery } from "@apollo/client"
-import { GET_ME } from "../../graphql/queries"
+import { useQuery, useApolloClient, useMutation } from "@apollo/client"
+import { CURRENT_USER } from "../../graphql/queries"
+import { LOGOUT } from "../../graphql/mutations"
 
 const AuthContext = createContext()
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const client = useApolloClient()
 
-  const { _data, loading: queryLoading } = useQuery(GET_ME, {
-    skip: !localStorage.getItem("token"),
+  const [logoutMutation] = useMutation(LOGOUT)
+
+  const { data, loading: queryLoading } = useQuery(CURRENT_USER, {
+    fetchPolicy: "cache-and-network",
+    errorPolicy: "all",
     onCompleted: (data) => {
-      setUser(data.me)
+      if (data?.me) {
+        setUser(data.me)
+      } else {
+        setUser(null)
+      }
       setLoading(false)
     },
-    onError: () => {
-      localStorage.removeItem("token")
+    onError: (error) => {
+      console.error("Auth error:", error)
       setUser(null)
       setLoading(false)
     },
   })
 
   useEffect(() => {
-    if (!localStorage.getItem("token")) {
+    if (data?.me) {
+      setUser(data.me)
+    } else if (data && !data.me) {
+      // Query completed but no user data
+      setUser(null)
+    }
+    
+    if (!queryLoading) {
       setLoading(false)
     }
-  }, [])
+  }, [data, queryLoading])
 
-  const login = (token, userData) => {
-    localStorage.setItem("token", token)
+  const login = async (userData) => {
     setUser(userData)
   }
 
-  const logout = () => {
-    localStorage.removeItem("token")
-    setUser(null)
+  const logout = async () => {
+    try {
+      // Call the logout mutation to clear the backend cookie
+      await logoutMutation()
+    } catch (error) {
+      console.error("Logout error:", error)
+    } finally {
+      // Clear local state and cache regardless of mutation success
+      setUser(null)
+      await client.clearStore()
+    }
   }
 
   return (
