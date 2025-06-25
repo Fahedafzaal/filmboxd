@@ -34,7 +34,6 @@ export function AuthProvider({ children }) {
     if (data?.me) {
       setUser(data.me)
     } else if (data && !data.me) {
-      // Query completed but no user data
       setUser(null)
     }
     
@@ -49,12 +48,10 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      // Call the logout mutation to clear the backend cookie
       await logoutMutation()
     } catch (error) {
       console.error("Logout error:", error)
     } finally {
-      // Clear local state and cache regardless of mutation success
       setUser(null)
       await client.clearStore()
     }
