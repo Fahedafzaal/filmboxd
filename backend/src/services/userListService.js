@@ -18,6 +18,20 @@ export class UserListService {
     async createList(userId, { name, description, tags, isRanked, isPublic, movies }) {
         validateListInput(userId, { name, description, tags, isRanked, isPublic, movies });
 
+        // Fetch full movie details for each tmdbId
+        const moviesWithDetails = await Promise.all(
+            (movies || []).map(async (movie) => {
+                const details = await this.tmdbService.getMovieDetails(movie.tmdbId);
+                return {
+                    tmdbId: movie.tmdbId,
+                    title: details.title,
+                    posterPath: details.posterPath,
+                    releaseDate: details.releaseDate,
+                    order: movie.order,
+                };
+            })
+        );
+
         const newList = await this.userListRepository.create({
             userId,
             name,
@@ -25,7 +39,7 @@ export class UserListService {
             tags: tags || [],
             isRanked: isRanked || false,
             isPublic: isPublic ?? true,
-            movies: dedupeMovies(movies || []),
+            movies: dedupeMovies(moviesWithDetails),
         });
 
         if (!newList) {

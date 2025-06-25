@@ -27,12 +27,13 @@ export class UserListRepository {
     }
 
     #formatList(list) {
+        const obj = typeof list.toObject === 'function' ? list.toObject() : list;
         return {
-            ...list,
-            id: list._id.toString(),
-            userId: list.userId.toString(),
-            createdAt: list.createdAt.toISOString(),
-            updatedAt: list.updatedAt.toISOString(),
+            ...obj,
+            id: obj._id.toString(),
+            userId: obj.userId.toString(),
+            createdAt: obj.createdAt.toISOString(),
+            updatedAt: obj.updatedAt.toISOString(),
         };
     }
 }

@@ -5,8 +5,9 @@ const userService = new UserService();
 
 export const userResolvers = {
   Query: {
-    me: (_, __, { user }) => user,
-    getAllUsers: () => userService.getAllUsers()
+    me: (_, __, { user }) => {
+      return user || null;
+    }
   },
 
   Mutation: {

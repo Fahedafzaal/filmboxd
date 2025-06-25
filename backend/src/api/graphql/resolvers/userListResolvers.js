@@ -10,7 +10,10 @@ export const userListResolvers = {
     },
 
     Mutation: {
-        createList: (_, { data }, { user }) => userListService.createList(user.id, data),
+        createList: async (_, { data }, { user }) => {
+            const result = await userListService.createList(user.id, data);
+            return result.data;
+        },
         deleteList: (_, { id }, { user }) => userListService.deleteList(id, user.id),
     },
 
